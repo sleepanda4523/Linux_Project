@@ -22,6 +22,8 @@ typedef struct SWINFO
     string reason;
 } swinfo;
 
+int list_len=0;
+
 swinfo **initBlock(string filename);
 void initProcess(swinfo **list);
 void waitProcess(swinfo **list);
@@ -37,6 +39,7 @@ int main(int argc, char **argv)
     swinfo **Blocklist;
     
     Blocklist = initBlock(argv[1]);
+    printProcess(Blocklist);
     //initProcess(Blocklist);
     //waitProcess(Blocklist);
     return 0;
@@ -51,13 +54,15 @@ swinfo **initBlock(string filename)
     off_t size; // file full size
     int cnt=0; //Block Count
 
-    if(fd = open(filename, O_RDONLY, 0644) == -1){
+    if((fd = open(filename, O_RDONLY, 0644)) < 0){
         printf("I don't open %s\n", filename);
         exit(-1);
     }
-    size = lseek(fd, 0, SEEK_END); //measure file size
+    if ((size = lseek(fd, 0, SEEK_END)) < 0) {
+		printf("lseek error\n");
+		exit(-1);
+	} //measure file size
     lseek(fd, 0, SEEK_SET); //reset file read point
-
     buf = malloc(sizeof(char) * size +1); //size plus 1 because '\0'
     if(read(fd, buf, size+1) == -1){
         printf("I don't read %s\n", filename);
@@ -68,9 +73,11 @@ swinfo **initBlock(string filename)
     for(cnt=0;temp != NULL; cnt++){
         listbuf[cnt] = malloc(sizeof(char)*strlen(temp));
         strcpy(listbuf[cnt], temp);
+        temp = strtok(NULL, "\n");
     }
+    list_len = cnt;
     // save swblock info
-    list = malloc(sizeof(swinfo*)*cnt);
+    list = malloc(sizeof(swinfo*) * cnt);
     for(int i=0; i<cnt; i++){
         list[i] = malloc(sizeof(swinfo));
         temp = strtok(listbuf[i], ";");
@@ -84,9 +91,28 @@ swinfo **initBlock(string filename)
     }
     // free list
     free(buf);
-    for(int i;temp != NULL; i++){
+    for(int i=0;i<cnt; i++){
         free(listbuf[i]);
     }
     free(listbuf);
     close(fd);
+}
+
+void printProcess(swinfo **list)
+{
+    system("clear");
+    printf("=========================================================================\n");
+    printf("|    Name    |    Restart Count    |     Start Time       |   Reason    |\n");
+    printf("|------------|---------------------|----------------------|-------------|\n");
+    printf("debug %s\n", list[0]->name);
+    for (int i = 0; i <= list_len; i++)
+    {   
+        printf("|%11s |%20d |%21s | %11s |\n", list[i]->name, list[i]->count, list[i]->time, list[i]->reason);
+        if (i + 1 == list_len)
+            continue;
+        else
+            printf("|------------|---------------------|----------------------|-------------|\n");
+    }
+    printf("=========================================================================\n");
+    return;
 }
