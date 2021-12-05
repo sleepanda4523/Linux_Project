@@ -32,12 +32,11 @@ void printProcess(swinfo **list);
 
 int main(int argc, char **argv)
 {
-    if(argc != 2) {
-        printf("I Need swBlock Filename\n");
-        return -1;
-    }
+    // if(argc != 2) {
+    //     printf("I Need swBlock Filename\n");
+    //     return -1;
+    // }
     swinfo **Blocklist;
-    
     Blocklist = initBlock(argv[1]);
     printProcess(Blocklist);
     //initProcess(Blocklist);
@@ -96,6 +95,8 @@ swinfo **initBlock(string filename)
     }
     free(listbuf);
     close(fd);
+
+    return list;
 }
 
 void printProcess(swinfo **list)
@@ -104,8 +105,7 @@ void printProcess(swinfo **list)
     printf("=========================================================================\n");
     printf("|    Name    |    Restart Count    |     Start Time       |   Reason    |\n");
     printf("|------------|---------------------|----------------------|-------------|\n");
-    printf("debug %s\n", list[0]->name);
-    for (int i = 0; i <= list_len; i++)
+    for (int i = 0; i < list_len; i++)
     {   
         printf("|%11s |%20d |%21s | %11s |\n", list[i]->name, list[i]->count, list[i]->time, list[i]->reason);
         if (i + 1 == list_len)
