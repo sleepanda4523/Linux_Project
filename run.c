@@ -19,7 +19,7 @@ typedef struct SWINFO
     string argv[3];
     int count;
     string time;
-    string reason;
+    char reason[256];
 } swinfo;
 
 int list_len=0;
@@ -29,6 +29,7 @@ void initProcess(swinfo **list);
 void waitProcess(swinfo **list);
 void restartProcess(swinfo **list, pid_t pid, int status);
 void printProcess(swinfo **list);
+bool checkParent(swinfo **list);
 
 int main(int argc, char **argv)
 {
@@ -38,8 +39,7 @@ int main(int argc, char **argv)
     // }
     swinfo **Blocklist;
     Blocklist = initBlock(argv[1]);
-    printProcess(Blocklist);
-    //initProcess(Blocklist);
+    initProcess(Blocklist);
     //waitProcess(Blocklist);
     return 0;
 }
@@ -102,17 +102,55 @@ swinfo **initBlock(string filename)
 void printProcess(swinfo **list)
 {
     system("clear");
-    printf("=========================================================================\n");
-    printf("|    Name    |    Restart Count    |     Start Time       |   Reason    |\n");
-    printf("|------------|---------------------|----------------------|-------------|\n");
+    printf("=============================================================================\n");
+    printf("|    Name    |    Restart Count    |       Start Time        |    Reason    |\n");
+    printf("|------------|---------------------|-------------------------|--------------|\n");
     for (int i = 0; i < list_len; i++)
     {   
-        printf("|%11s |%20d |%21s | %11s |\n", list[i]->name, list[i]->count, list[i]->time, list[i]->reason);
+        printf("|%11s |%20d | %23s | %12s |\n", list[i]->name, list[i]->count, list[i]->time, list[i]->reason);
         if (i + 1 == list_len)
             continue;
         else
-            printf("|------------|---------------------|----------------------|-------------|\n");
+            printf("|------------|---------------------|-------------------------|--------------|\n");
     }
-    printf("=========================================================================\n");
+    printf("=============================================================================\n");
     return;
+}
+
+void initProcess(swinfo **list)
+{
+    time_t now; //now time
+    struct tm *nowtime; //now time 
+    for(int i=0;i<list_len;i++){
+        list[i]->pid = fork();
+
+        if (list[i]->pid == 0) // if child process
+            break;
+        if (list[i]->pid == -1)
+        { 
+            printf("swblock [%d] error\n", i);
+            exit(-1);
+        }
+
+        now = time(NULL);
+        nowtime = localtime(&now);
+
+        list[i]->time = malloc(sizeof(char) * strlen("xxxx.xx.xx. xx:xx:xx"));
+        sprintf(list[i]->time, "%04d.%02d.%02d. %02d:%02d:%02d", nowtime->tm_year + 1900, nowtime->tm_mon + 1, nowtime->tm_mday, nowtime->tm_hour, nowtime->tm_min, nowtime->tm_sec);
+        // list[i]->reason reset
+        memset(list[i]->reason, '\0', sizeof(list[i]->reason));
+        strcpy(list[i]->reason, "None.");
+    }
+    if(checkParent(list)){
+        printProcess(list);
+    }
+    return;
+}
+bool checkParent(swinfo **list)
+{
+    bool test = true;
+    int i;
+    for (i = 0; i < list_len; i++)
+        test = test && list[i]->pid > 0;
+    return test;
 }
