@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#define LOGFILE "./log/restart.txt"
+
 typedef char* string;
 typedef struct SWINFO
 {
@@ -29,18 +31,19 @@ void initProcess(swinfo **list);
 void waitProcess(swinfo **list);
 void restartProcess(swinfo **list, pid_t pid, int status);
 void printProcess(swinfo **list);
+void logProcess(swinfo *swblock);
 bool checkParent(swinfo **list);
 
 int main(int argc, char **argv)
 {
     // if(argc != 2) {
-    //     printf("I Need swBlock Filename\n");
+    //     printf("I Need swblock file\n");
     //     return -1;
     // }
     swinfo **Blocklist;
-    Blocklist = initBlock(argv[1]);
+    Blocklist = initBlock("swblock.txt");
     initProcess(Blocklist);
-    //waitProcess(Blocklist);
+    waitProcess(Blocklist);
     return 0;
 }
 
@@ -102,18 +105,18 @@ swinfo **initBlock(string filename)
 void printProcess(swinfo **list)
 {
     system("clear");
-    printf("=============================================================================\n");
-    printf("|    Name    |    Restart Count    |       Start Time        |    Reason    |\n");
-    printf("|------------|---------------------|-------------------------|--------------|\n");
+    printf("===================================================================================\n");
+    printf("|    Name    |    Restart Count    |       Start Time        |      Reason        |\n");
+    printf("|------------|---------------------|-------------------------|--------------------|\n");
     for (int i = 0; i < list_len; i++)
     {   
-        printf("|%11s |%20d | %23s | %12s |\n", list[i]->name, list[i]->count, list[i]->time, list[i]->reason);
+        printf("|%11s |%20d | %23s | %18s |\n", list[i]->name, list[i]->count, list[i]->time, list[i]->reason);
         if (i + 1 == list_len)
             continue;
         else
-            printf("|------------|---------------------|-------------------------|--------------|\n");
+            printf("|------------|---------------------|-------------------------|--------------------|\n");
     }
-    printf("=============================================================================\n");
+    printf("===================================================================================\n");
     return;
 }
 
@@ -145,6 +148,72 @@ void initProcess(swinfo **list)
         printProcess(list);
     }
     return;
+}
+void waitProcess(swinfo **list)
+{
+    if(checkParent(list)){
+        pid_t pid;
+        int status;
+        while(1){
+            pid = waitpid(-1, &status, WUNTRACED);
+            restartProcess(list, pid, status);
+        }
+    } else {
+        for(int i=0;i<list_len;i++){
+            if(list[i]->pid == 0){
+                sleep(atoi(list[i]->argv[1]));
+                kill(getpid(), atoi(list[i]->argv[2]));
+                break;
+            }
+        }
+    }
+}
+
+void restartProcess(swinfo **list, pid_t pid, int status)
+{
+    for(int i=0;i<list_len;i++){
+        if(list[i]->pid == pid){
+            if(WIFEXITED(status)) {
+                sprintf(list[i]->reason, "Exit(%d)", WEXITSTATUS(status));
+            } 
+            else if(WIFSIGNALED(status)){
+                int signal = WTERMSIG(status);
+                sprintf(list[i]->reason, "Signal(%s)", strsignal(signal));
+            }
+            list[i]->count += 1;
+            list[i]->pid = fork();
+            if(checkParent(list)){
+                logProcess(list[i]);
+                printProcess(list);
+            } else {
+                sleep(atoi(list[i]->argv[1]));
+                kill(getpid(), atoi(list[i]->argv[2]));
+            }
+            break;
+        }
+    }
+}
+void logProcess(swinfo *swblock)
+{
+    int fd;
+    time_t now; //now time
+    struct tm *nowtime; //now time 
+    string buf = malloc(sizeof(char)*600); //log 
+
+    now = time(NULL);
+    nowtime = localtime(&now);
+
+    // write log buf
+    sprintf(swblock->time, "%04d.%02d.%02d. %02d:%02d:%02d", nowtime->tm_year + 1900, nowtime->tm_mon + 1, nowtime->tm_mday, nowtime->tm_hour, nowtime->tm_min, nowtime->tm_sec);
+    sprintf(buf, "------------------\nSW name : %s\nRestart Time : %s\nReason : %s\nRestart Count : %d\n", swblock->name, swblock->time, swblock->reason, swblock->count);
+    
+    if((fd = open(LOGFILE, O_RDWR | O_CREAT | O_APPEND, 0644)) < 0){
+        printf("I don't open %s\n", LOGFILE);
+        exit(-1);
+    }
+    write(fd,buf,strlen(buf));
+    close(fd);
+    free(buf);
 }
 bool checkParent(swinfo **list)
 {
