@@ -36,12 +36,12 @@ bool checkParent(swinfo **list);
 
 int main(int argc, char **argv)
 {
-    // if(argc != 2) {
-    //     printf("I Need swblock file\n");
-    //     return -1;
-    // }
+    if(argc != 2) {
+        printf("I Need swblock file\n");
+        return -1;
+    }
     swinfo **Blocklist;
-    Blocklist = initBlock("swblock.txt");
+    Blocklist = initBlock(argv[1]);
     initProcess(Blocklist);
     waitProcess(Blocklist);
     return 0;
@@ -174,7 +174,7 @@ void restartProcess(swinfo **list, pid_t pid, int status)
     for(int i=0;i<list_len;i++){
         if(list[i]->pid == pid){
             if(WIFEXITED(status)) {
-                sprintf(list[i]->reason, "Exit(%d)", WEXITSTATUS(status));
+                sprintf(list[i]->reason, "Exit(%d)", WEXITSTATUS(status) >> 8);
             } 
             else if(WIFSIGNALED(status)){
                 int signal = WTERMSIG(status);
